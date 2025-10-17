@@ -143,6 +143,7 @@ function verify_data_hashsums
 
 	while read -r digest file; do
 		typeset digest1=$(xxh128digest $file)
+    log_note "ls: $(ls -R /testpool1 2>/dev/null || true)"
 		if [[ "$digest1" != "$digest" ]]; then
 			return 1
 		fi

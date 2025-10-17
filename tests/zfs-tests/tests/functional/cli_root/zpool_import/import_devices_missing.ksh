@@ -38,8 +38,7 @@
 
 verify_runnable "global"
 
-function custom_cleanup
-{
+function custom_cleanup {
 	log_must set_spa_load_verify_metadata 1
 	log_must set_spa_load_verify_data 1
 	log_must set_zfs_max_missing_tvds 0
@@ -51,23 +50,32 @@ function custom_cleanup
 
 log_onexit custom_cleanup
 
-function test_devices_missing
-{
+function test_devices_missing {
 	typeset poolcreate="$1"
 	typeset addvdevs="$2"
 	typeset missingvdevs="$3"
 	typeset -i missingtvds="$4"
 
 	log_note "$0: pool '$poolcreate', adding $addvdevs, then" \
-	    "moving away $missingvdevs."
+		"moving away $missingvdevs."
 
 	log_must zpool create $TESTPOOL1 $poolcreate
 
 	log_must generate_data $TESTPOOL1 $MD5FILE "first"
-
-	log_must zpool add $TESTPOOL1 $addvdevs
+	# right here, seems like testpool1/first1/file1 or whatever
+	# always exists
+	# log_must zpool add $TESTPOOL1 $addvdevs
+	log_must echo "hello world"
+	# commenting out the above line seems to solve the problem
 
 	log_must generate_data $TESTPOOL1 $MD5FILE2 "second"
+	# comment out the above line causes the test to fail
+	# bc send hashfile not made. but otherwise seems like
+	# no issues
+
+	# but here it doesnt whent he test fails
+	# although having this log somehow creates other failures
+	log_note "ls: $(ls -R /testpool1 2>/dev/null || true)"
 
 	log_must_busy zpool export $TESTPOOL1
 
@@ -76,19 +84,20 @@ function test_devices_missing
 	# Tell zfs that it is ok to import a pool with missing top-level vdevs
 	log_must set_zfs_max_missing_tvds $missingtvds
 	# Missing devices means that data or metadata may be corrupted.
-	(( missingtvds > 1 )) && log_must set_spa_load_verify_metadata 0
+	((missingtvds > 1)) && log_must set_spa_load_verify_metadata 0
 	log_must set_spa_load_verify_data 0
+	log_note "ls: $(ls -R /testpool1 2>/dev/null || true)"
 	log_must zpool import -o readonly=on -d $DEVICE_DIR $TESTPOOL1
 
 	log_must verify_data_hashsums $MD5FILE
 
 	log_note "Try reading second batch of data, make sure pool doesn't" \
-	    "get suspended."
+		"get suspended."
 	verify_data_hashsums $MD5FILE >/dev/null 2>&1
 
 	log_must_busy zpool export $TESTPOOL1
 
-	typeset newpaths=$(echo "$missingvdevs" | \
+	typeset newpaths=$(echo "$missingvdevs" |
 		sed "s:$DEVICE_DIR:$BACKUP_DEVICE_DIR:g")
 	log_must mv $newpaths $DEVICE_DIR
 	log_must set_spa_load_verify_metadata 1
@@ -110,7 +119,7 @@ log_must mkdir -p $BACKUP_DEVICE_DIR
 test_devices_missing "$VDEV0" "$VDEV1" "$VDEV1" 1
 test_devices_missing "$VDEV0" "$VDEV1 $VDEV2" "$VDEV1" 1
 test_devices_missing "mirror $VDEV0 $VDEV1" "mirror $VDEV2 $VDEV3" \
-    "$VDEV2 $VDEV3" 1
+	"$VDEV2 $VDEV3" 1
 test_devices_missing "$VDEV0 log $VDEV1" "$VDEV2" "$VDEV2" 1
 
 #
