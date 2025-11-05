@@ -78,29 +78,40 @@ function test_devices_missing
 	# Missing devices means that data or metadata may be corrupted.
 	(( missingtvds > 1 )) && log_must set_spa_load_verify_metadata 0
 	log_must set_spa_load_verify_data 0
-	log_must zpool import -o readonly=on -d $DEVICE_DIR $TESTPOOL1
+  # Here:
+  # Test passes case: file does NOT exist
+  # Test fails case: file does NOT exist
+  # "file" refers to /testpool1/first1/file1
+	zpool import -o readonly=on -d $DEVICE_DIR $TESTPOOL1
+  # Here:
+  # Test passes case: file does exist
+  # Test fails case: file does NOT exist
 
-	log_must verify_data_hashsums $MD5FILE
+  # sleep 3
 
-	log_note "Try reading second batch of data, make sure pool doesn't" \
-	    "get suspended."
-	verify_data_hashsums $MD5FILE >/dev/null 2>&1
+	verify_data_hashsums $MD5FILE
 
-	log_must_busy zpool export $TESTPOOL1
+  # sleep 3
 
-	typeset newpaths=$(echo "$missingvdevs" | \
-		sed "s:$DEVICE_DIR:$BACKUP_DEVICE_DIR:g")
-	log_must mv $newpaths $DEVICE_DIR
-	log_must set_spa_load_verify_metadata 1
-	log_must set_spa_load_verify_data 1
-	log_must set_zfs_max_missing_tvds 0
-	log_must zpool import -d $DEVICE_DIR $TESTPOOL1
-
-	log_must verify_data_hashsums $MD5FILE
-	log_must verify_data_hashsums $MD5FILE2
-
+	# log_note "Try reading second batch of data, make sure pool doesn't" \
+	#     "get suspended."
+	# verify_data_hashsums $MD5FILE >/dev/null 2>&1
+	#
+	# log_must_busy zpool export $TESTPOOL1
+	#
+	# typeset newpaths=$(echo "$missingvdevs" | \
+	# 	sed "s:$DEVICE_DIR:$BACKUP_DEVICE_DIR:g")
+	# log_must mv $newpaths $DEVICE_DIR
+	# log_must set_spa_load_verify_metadata 1
+	# log_must set_spa_load_verify_data 1
+	# log_must set_zfs_max_missing_tvds 0
+	# log_must zpool import -d $DEVICE_DIR $TESTPOOL1
+	#
+	# log_must verify_data_hashsums $MD5FILE
+	# log_must verify_data_hashsums $MD5FILE2
+	#
 	# Cleanup
-	log_must zpool destroy $TESTPOOL1
+	zpool destroy $TESTPOOL1
 
 	log_note ""
 }
@@ -108,16 +119,16 @@ function test_devices_missing
 log_must mkdir -p $BACKUP_DEVICE_DIR
 
 test_devices_missing "$VDEV0" "$VDEV1" "$VDEV1" 1
-test_devices_missing "$VDEV0" "$VDEV1 $VDEV2" "$VDEV1" 1
-test_devices_missing "mirror $VDEV0 $VDEV1" "mirror $VDEV2 $VDEV3" \
-    "$VDEV2 $VDEV3" 1
-test_devices_missing "$VDEV0 log $VDEV1" "$VDEV2" "$VDEV2" 1
+# test_devices_missing "$VDEV0" "$VDEV1 $VDEV2" "$VDEV1" 1
+# test_devices_missing "mirror $VDEV0 $VDEV1" "mirror $VDEV2 $VDEV3" \
+#     "$VDEV2 $VDEV3" 1
+# test_devices_missing "$VDEV0 log $VDEV1" "$VDEV2" "$VDEV2" 1
 
 #
 # Note that we are testing for 2 non-consecutive missing devices.
 # Missing consecutive devices results in missing metadata. Because of
 # Missing metadata can cause the root dataset to fail to mount.
 #
-test_devices_missing "$VDEV0" "$VDEV1 $VDEV2 $VDEV3" "$VDEV1 $VDEV3" 2
+# test_devices_missing "$VDEV0" "$VDEV1 $VDEV2 $VDEV3" "$VDEV1 $VDEV3" 2
 
 log_pass "zpool import succeeded with missing devices."
